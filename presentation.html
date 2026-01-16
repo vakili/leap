@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LEAP Data Engineering Case Study</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/theme/black.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/plugin/highlight/monokai.css">
+
+    <style>
+        .reveal h1, .reveal h2, .reveal h3 {
+            text-transform: none;
+        }
+        .reveal section img {
+            border: none;
+            box-shadow: none;
+        }
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+        .highlight-box {
+            background: rgba(66, 185, 131, 0.2);
+            border-left: 4px solid #42b983;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        code {
+            color: #42b983;
+        }
+        .small-text {
+            font-size: 0.7em;
+        }
+        table {
+            font-size: 0.7em;
+        }
+        th {
+            background: rgba(66, 185, 131, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- Title -->
+            <section data-background-gradient="linear-gradient(45deg, #1a1a2e, #16213e)">
+                <h1>SF Gym Accessibility</h1>
+                <h3>Data Engineering Case Study</h3>
+                <p style="margin-top: 2rem; font-size: 0.8em;">
+                    Snowflake + dbt + Geospatial Analytics
+                </p>
+            </section>
+
+            <!-- Use Case -->
+            <section>
+                <h2>The Use Case</h2>
+                <div class="highlight-box">
+                    <p style="font-size: 1.1em;">
+                        Identify underserved areas in San Francisco for new gym locations
+                    </p>
+                </div>
+                <div style="margin-top: 2rem; text-align: left;">
+                    <p><strong>Why This Use Case?</strong></p>
+                    <ul class="small-text">
+                        <li>Combines geospatial data with demographics</li>
+                        <li>Real-world business problem</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Data Sources Overview -->
+            <section>
+                <h2>Data Sources</h2>
+                <p class="small-text">All from Snowflake Marketplace</p>
+
+                <table style="width: 100%; margin-top: 2rem;">
+                    <thead>
+                        <tr>
+                            <th>Dataset</th>
+                            <th>Provider</th>
+                            <th>What It Provides</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Overture Maps - Places</strong></td>
+                            <td>Overture Maps Foundation</td>
+                            <td>POI locations (gyms, businesses)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>US Census Demographics</strong></td>
+                            <td>SafeGraph</td>
+                            <td>Population, income, employment</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Census Geometry</strong></td>
+                            <td>SafeGraph</td>
+                            <td>Geographic boundaries (GeoJSON)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p class="small-text" style="margin-top: 1.5rem;">
+                    <strong>Result:</strong> 278 gyms × 581 census blocks in San Francisco
+                </p>
+            </section>
+
+            <!-- Why These Sources -->
+            <section>
+                <h2>Why These Data Sources?</h2>
+                <div style="text-align: left;">
+                    <div class="highlight-box">
+                        <p><strong>Overture Maps</strong></p>
+                        <p class="small-text">Open-source, collaborative map data • Rich POI metadata • CC-BY 4.0 license</p>
+                    </div>
+
+                    <div class="highlight-box">
+                        <p><strong>SafeGraph Census Data</strong></p>
+                        <p class="small-text">7,500+ demographic attributes • Census Block Group level • Pre-joined with geometry</p>
+                    </div>
+
+                    <div class="highlight-box">
+                        <p><strong>Combination Power</strong></p>
+                        <p class="small-text">Spatial joins between POIs and demographics • Enables demand modeling</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Model Design -->
+            <section>
+                <h2>Data Model Design</h2>
+                <p>3-layer architecture following dbt best practices</p>
+                <pre style="font-size: 0.4em;"><code class="language-text" data-trim>
+┌────────────────────────────────────────────────┐
+│         STAGING LAYER                          │
+│   Clean & standardize raw data                 │
+│                                                 │
+│   stg_sf_census_blocks   (SafeGraph Geometry)  │
+│   stg_sf_demographics    (SafeGraph Census)    │
+│   stg_sf_places          (Overture Maps)       │
+└──────────────────┬─────────────────────────────┘
+                   │
+┌──────────────────▼─────────────────────────────┐
+│      INTERMEDIATE LAYER                        │
+│   Business logic & calculations                │
+│                                                 │
+│   int_sf_gyms            (Filtered gyms)       │
+│   int_sf_demand_metrics  (Demand scores)       │
+└──────────────────┬─────────────────────────────┘
+                   │
+┌──────────────────▼─────────────────────────────┐
+│         MARTS LAYER                            │
+│   Analytics-ready, denormalized                │
+│                                                 │
+│   mart_gym_accessibility (Final analytics)     │
+└────────────────────────────────────────────────┘
+                </code></pre>
+            </section>
+
+            <!-- Layer Philosophy -->
+            <section>
+                <h2>Layer Design Philosophy</h2>
+                <table style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Layer</th>
+                            <th>Purpose</th>
+                            <th>Characteristics</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Staging</strong></td>
+                            <td>1:1 with sources</td>
+                            <td>Cleaning, typing, renaming</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Intermediate</strong></td>
+                            <td>Business logic</td>
+                            <td>Joins, calculations, filtering</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Marts</strong></td>
+                            <td>Analytics ready</td>
+                            <td>Denormalized, optimized</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="highlight-box" style="margin-top: 1.5rem;">
+                    <p class="small-text">
+                        <strong>Benefit:</strong> Clear separation of concerns, easier debugging,
+                        reusable components
+                    </p>
+                </div>
+            </section>
+
+            <!-- Staging Example -->
+            <section>
+                <h2>Staging Layer Example</h2>
+                <pre><code class="language-sql" data-trim data-line-numbers="1-7|9-15">
+-- stg_sf_census_blocks.sql
+-- Purpose: Clean census geography data
+
+with source_data as (
+    select *
+    from {{ source('census', 'cbg_geometry_2019') }}
+    where STATE = 'CA' and COUNTY = 'San Francisco County'
+)
+
+select
+    CENSUS_BLOCK_GROUP as census_block_group,
+    STATE as state,
+    COUNTY as county,
+    GEOMETRY as geometry_json,
+    try_to_geography(GEOMETRY) as geography
+from source_data
+                </code></pre>
+                <p class="small-text">Key transformation: GeoJSON string → Snowflake GEOGRAPHY type</p>
+            </section>
+
+            <!-- Intermediate Example -->
+            <section>
+                <h2>Intermediate Layer Example</h2>
+                <pre><code class="language-sql" data-trim data-line-numbers="1-8|10-16">
+-- int_sf_demand_metrics.sql
+-- Calculate demand score for gym services
+
+(
+    coalesce(pop_age_18_54, 0) * 0.4 +
+    coalesce(median_household_income, 0) / 1000 * 0.3 +
+    coalesce(employed_population, 0) * 0.3
+) as demand_score,
+
+-- Flag high-demand areas
+case
+    when pop_age_18_54 > 500
+        and median_household_income > 75000
+        and employed_population > 300
+    then true else false
+end as is_high_demand_area
+                </code></pre>
+            </section>
+
+            <!-- Marts Example -->
+            <section>
+                <h2>Marts Layer Example</h2>
+                <pre><code class="language-sql" data-trim data-line-numbers="1-10|12-16">
+-- mart_gym_accessibility.sql
+-- Spatial joins for accessibility analysis
+
+with gym_accessibility as (
+    select
+        d.census_block_group,
+        -- Count nearby gyms using spatial function
+        count(distinct case
+            when st_dwithin(st_centroid(d.geography),
+                           g.geography, 804)
+            then g.place_id
+        end) as gyms_nearby
+
+    from demand_areas d
+    cross join gyms g
+    group by d.census_block_group
+)
+                </code></pre>
+                <p class="small-text">Cross join creates 161K combinations for spatial analysis</p>
+            </section>
+
+            <!-- Materialization Strategy -->
+            <section>
+                <h2>Materialization Strategy</h2>
+                <table style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Layer</th>
+                            <th>Materialization</th>
+                            <th>Why</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Staging</strong></td>
+                            <td>View</td>
+                            <td>Always fresh from source, fast iteration</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Intermediate</strong></td>
+                            <td>View</td>
+                            <td>No storage cost, reusable logic</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Marts</strong></td>
+                            <td>Table</td>
+                            <td>Query performance, BI tool stability</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Materialization Deep Dive -->
+            <section>
+                <h2>Why Views for Staging?</h2>
+                <div style="text-align: left; font-size: 0.9em;">
+                    <p><strong>Advantages:</strong></p>
+                    <ul class="small-text">
+                        <li>No storage cost - references source directly</li>
+                        <li>Always up-to-date with source data</li>
+                        <li>Fast development iteration</li>
+                        <li>Easy to refactor without rebuilding</li>
+                    </ul>
+
+                    <p style="margin-top: 1rem;"><strong>Trade-off:</strong></p>
+                    <p class="small-text">Query time vs storage - acceptable for our data volume (< 50K rows per source)</p>
+
+                    <pre style="margin-top: 1rem;"><code class="language-yaml" data-trim>
+# dbt_project.yml
+models:
+  staging:
+    +materialized: view
+    +schema: staging
+                    </code></pre>
+                </div>
+            </section>
+
+            <!-- Why Tables for Marts -->
+            <section>
+                <h2>Why Tables for Marts?</h2>
+                <div style="text-align: left; font-size: 0.9em;">
+                    <p><strong>Advantages:</strong></p>
+                    <ul class="small-text">
+                        <li>Fast query performance for end users</li>
+                        <li>Stable for BI tools (consistent schema)</li>
+                        <li>Can add clustering for optimization</li>
+                        <li>Supports incremental builds at scale</li>
+                    </ul>
+
+                    <p style="margin-top: 1rem;"><strong>When to Use Incremental:</strong></p>
+                    <pre style="font-size: 0.7em;"><code class="language-sql" data-trim>
+{{ config(
+    materialized='incremental',
+    unique_key='census_block_group',
+    cluster_by=['state', 'county']
+) }}
+
+select * from ...
+{% if is_incremental() %}
+    where updated_at > (select max(updated_at) from {{ this }})
+{% endif %}
+                    </code></pre>
+                </div>
+            </section>
+
+            <!-- Data Governance -->
+            <section>
+                <h2>Data Governance</h2>
+                <div style="text-align: left;">
+                    <p><strong>Testing: 38 Tests | 100% Pass Rate</strong></p>
+                    <table style="width: 100%; margin-top: 1rem;">
+                        <thead>
+                            <tr>
+                                <th>Test Type</th>
+                                <th>Count</th>
+                                <th>Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Unique</td>
+                                <td>6</td>
+                                <td>Primary key integrity</td>
+                            </tr>
+                            <tr>
+                                <td>Not Null</td>
+                                <td>22</td>
+                                <td>Required fields</td>
+                            </tr>
+                            <tr>
+                                <td>Accepted Values</td>
+                                <td>5</td>
+                                <td>Enum validation</td>
+                            </tr>
+                            <tr>
+                                <td>Relationships</td>
+                                <td>5</td>
+                                <td>Foreign keys</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Testing Example -->
+            <section>
+                <h2>Testing in Practice</h2>
+                <pre><code class="language-yaml" data-trim data-line-numbers="1-5|7-11|13-20">
+# models/marts/marts_models.yml
+models:
+  - name: mart_gym_accessibility
+    description: Final analytics table for gym accessibility
+
+    columns:
+      - name: census_block_group
+        description: 12-digit census block identifier
+        tests:
+          - not_null
+          - unique
+
+      - name: opportunity_tier
+        description: Expansion opportunity classification
+        tests:
+          - not_null
+          - accepted_values:
+              values: [High Opportunity, Medium Opportunity,
+                      Low Priority, Saturated]
+                </code></pre>
+            </section>
+
+            <!-- Documentation -->
+            <section>
+                <h2>Documentation</h2>
+                <div class="two-column">
+                    <div>
+                        <h4 style="font-size: 1em; color: #42b983;">Automated (dbt)</h4>
+                        <ul class="small-text">
+                            <li>Data catalog with lineage DAG</li>
+                            <li>Column descriptions</li>
+                            <li>Test results</li>
+                            <li>Model dependencies</li>
+                        </ul>
+                        <pre style="font-size: 0.6em; margin-top: 0.5rem;"><code class="language-bash">dbt docs generate
+dbt docs serve</code></pre>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 1em; color: #42b983;">Manual</h4>
+                        <ul class="small-text">
+                            <li>README with setup</li>
+                            <li>Architecture docs</li>
+                            <li>Methodology notes</li>
+                            <li>This presentation!</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Project Organization -->
+            <section>
+                <h2>Project Organization</h2>
+                <pre style="font-size: 0.45em;"><code class="language-text" data-trim>
+models/
+├── staging/
+│   ├── sources.yml              # Snowflake Marketplace source definitions
+│   ├── staging_models.yml       # Model schemas, descriptions, tests
+│   ├── stg_sf_census_blocks.sql # Geographic boundaries (SafeGraph)
+│   ├── stg_sf_demographics.sql  # Population, income, employment data
+│   └── stg_sf_places.sql        # Points of interest from Overture Maps
+│
+├── intermediate/
+│   ├── intermediate_models.yml  # Business logic layer specs
+│   ├── int_sf_gyms.sql          # Filtered gym locations
+│   └── int_sf_demand_metrics.sql # Calculated demand scores
+│
+└── marts/
+    ├── marts_models.yml         # Final analytics layer specs
+    └── mart_gym_accessibility.sql # Combined accessibility analysis
+                </code></pre>
+            </section>
+
+            <!-- Production Architecture -->
+            <section>
+                <h2>Production Architecture</h2>
+                <p class="small-text">Designed for scale, multiple developers, concurrent workflows</p>
+                <pre style="font-size: 0.35em;"><code class="language-text" data-trim>
+┌─────────────────────┐
+│ Snowflake Warehouse │
+├─────────────────────┤
+│ RAW                 │ ← Marketplace data
+│ STAGING             │ ← Views
+│ INTERMEDIATE        │ ← Views
+│ MARTS               │ ← Tables
+│ DEV_{user}          │ ← Developer sandboxes
+└──────────┬──────────┘
+           │
+┌──────────▼──────────┐
+│    dbt Cloud        │
+│ • CI/CD jobs        │
+│ • Slim CI           │
+│ • Scheduling        │
+└──────────┬──────────┘
+           │
+┌──────────▼──────────┐
+│  GitHub             │
+│ • Version control   │
+│ • PR workflow       │
+└─────────────────────┘
+                </code></pre>
+            </section>
+
+            <!-- Multi-Developer Workflow -->
+            <section>
+                <h2>Supporting Multiple Developers</h2>
+                <div style="text-align: left; font-size: 0.85em;">
+                    <p><strong>1. Personal Dev Schemas</strong></p>
+                    <pre style="font-size: 0.8em;"><code class="language-yaml" data-trim>
+# Each developer gets isolated schema
+schema: dev_{{ env_var('DBT_USER') }}
+                    </code></pre>
+
+                    <p><strong>2. Git Workflow</strong></p>
+                    <pre style="font-size: 0.75em;"><code class="language-text">main → develop → feature/new-metric</code></pre>
+
+                    <p><strong>3. CI on Pull Requests</strong></p>
+                    <pre style="font-size: 0.8em;"><code class="language-bash">dbt build --select state:modified+</code></pre>
+                    <p class="small-text">Slim CI: Only runs changed models + downstream</p>
+                </div>
+            </section>
+
+            <!-- Scaling Strategy -->
+            <section>
+                <h2>Scaling for Increased Volume</h2>
+                <div class="two-column">
+                    <div>
+                        <h4 style="font-size: 1em; color: #42b983;">Compute</h4>
+                        <ul class="small-text">
+                            <li>Separate warehouses per workload</li>
+                            <li>Auto-scaling (1-5 clusters)</li>
+                            <li>Auto-suspend (1-10 min idle)</li>
+                            <li>Resource monitors</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 1em; color: #42b983;">Data</h4>
+                        <ul class="small-text">
+                            <li>Incremental materialization</li>
+                            <li>Table clustering</li>
+                            <li>Result caching</li>
+                            <li>Partition pruning</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Concurrent Workflows -->
+            <section>
+                <h2>Concurrent Workflows</h2>
+                <table style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Job</th>
+                            <th>Trigger</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Production</strong></td>
+                            <td>Daily 6 AM</td>
+                            <td>Update marts for BI tools</td>
+                        </tr>
+                        <tr>
+                            <td><strong>CI</strong></td>
+                            <td>On PR</td>
+                            <td>Validate changes before merge</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Full Refresh</strong></td>
+                            <td>Weekly</td>
+                            <td>Rebuild everything from scratch</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p class="small-text" style="margin-top: 1rem;">
+                    Jobs can run concurrently using separate Snowflake warehouses
+                </p>
+            </section>
+
+            <!-- Thought Process -->
+            <section>
+                <h2>Thought Process</h2>
+                <div style="text-align: left;">
+                    <p><strong>Why This Approach?</strong></p>
+                    <ol class="small-text">
+                        <li><strong>Start with use case</strong> - Makes the project engaging and shows real-world application</li>
+                        <li><strong>Leverage Snowflake Marketplace</strong> - Quick access to high-quality datasets</li>
+                        <li><strong>Follow dbt best practices</strong> - Layer separation, comprehensive testing</li>
+                        <li><strong>Think production-first</strong> - Robust architecture that scales from day 1</li>
+                        <li><strong>Document everything</strong> - Essential for maintenance and collaboration</li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- What Was Difficult -->
+            <section>
+                <h2>What Was Difficult</h2>
+                <div style="text-align: left;">
+                    <div class="highlight-box">
+                        <p><strong>1. Scoping the project</strong></p>
+                        <p class="small-text">Finding something self-contained yet illustrative of real-world data engineering</p>
+                    </div>
+
+                    <div class="highlight-box">
+                        <p><strong>2. Data complexity</strong></p>
+                        <p class="small-text">Navigating census data with 7,500+ attributes and understanding geospatial functions</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- What Went Well -->
+            <section>
+                <h2>What Went Well</h2>
+                <ul>
+                    <li>3-layer architecture kept things organized</li>
+                    <li>dbt testing caught issues early</li>
+                    <li>Snowflake Marketplace made data access easy</li>
+                    <li>Geospatial functions performed well</li>
+                    <li>Documentation generated automatically</li>
+                </ul>
+            </section>
+
+            <!-- With More Time -->
+            <section>
+                <h2>With More Time</h2>
+                <div style="text-align: left;">
+                    <ul class="small-text">
+                        <li>Implement CI/CD automation with GitHub Actions + Snowflake integration</li>
+                        <li>Add incremental models for larger datasets</li>
+                        <li>Expand to other California cities</li>
+                        <li>Refine demand score based on domain expertise</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Demo -->
+            <section>
+                <h2>Demo</h2>
+                <div style="text-align: left;">
+                    <p><strong>Interactive Dashboard (Streamlit)</strong></p>
+                    <pre><code class="language-bash" data-trim>
+uv run streamlit run streamlit_app.py
+                    </code></pre>
+
+                    <p style="margin-top: 2rem;"><strong>Data Documentation (dbt)</strong></p>
+                    <pre><code class="language-bash" data-trim>
+uv run dbt docs serve
+                    </code></pre>
+                </div>
+            </section>
+
+            <!-- Q&A -->
+            <section data-background-gradient="linear-gradient(45deg, #1a1a2e, #16213e)">
+                <h1>Questions?</h1>
+                <p style="margin-top: 3rem; font-size: 0.8em;">
+                    Thank you!
+                </p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/plugin/notes/notes.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/plugin/markdown/markdown.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/plugin/highlight/highlight.js"></script>
+
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: 'c/t',
+            transition: 'slide',
+            backgroundTransition: 'fade',
+            center: true,
+            plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ],
+            width: 1280,
+            height: 720,
+            margin: 0.1
+        });
+    </script>
+</body>
+</html>

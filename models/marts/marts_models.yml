@@ -1,0 +1,73 @@
+version: 2
+
+models:
+  - name: mart_gym_accessibility
+    description: >
+      Final analytics table showing gym accessibility for each San Francisco census block.
+      Ready for choropleth visualization to identify underserved areas and opportunities
+      for new gym locations.
+    columns:
+      - name: census_block_group
+        description: 12-digit census block group identifier
+        tests:
+          - not_null
+          - unique
+
+      - name: geography
+        description: Census block geography for mapping
+        tests:
+          - not_null
+
+      - name: geometry_json
+        description: GeoJSON representation for visualization tools
+        tests:
+          - not_null
+
+      - name: total_population
+        description: Total population in census block
+        tests:
+          - not_null
+
+      - name: demand_score
+        description: Calculated demand score (higher = more demand)
+        tests:
+          - not_null
+
+      - name: gyms_within_1_mile
+        description: Count of gyms within 1 mile radius
+        tests:
+          - not_null
+
+      - name: gyms_within_half_mile
+        description: Count of gyms within 0.5 mile radius (walking distance)
+        tests:
+          - not_null
+
+      - name: distance_to_nearest_gym_miles
+        description: Distance to nearest gym in miles
+
+      - name: accessibility_rating
+        description: Accessibility rating (Excellent, Good, Fair, Poor, Very Poor)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Excellent', 'Good', 'Fair', 'Poor', 'Very Poor']
+
+      - name: is_underserved
+        description: Boolean flag for underserved areas (high demand + poor accessibility)
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+
+      - name: opportunity_score
+        description: Priority score for new gym location (higher = better opportunity)
+        tests:
+          - not_null
+
+      - name: opportunity_tier
+        description: Categorized opportunity level for visualization
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['High Opportunity', 'Medium Opportunity', 'Low Priority', 'Saturated']

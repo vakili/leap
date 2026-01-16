@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: int_sf_gyms
+    description: Filtered and categorized gym/fitness locations in San Francisco
+    columns:
+      - name: place_id
+        description: Unique place identifier
+        tests:
+          - not_null
+          - unique
+
+      - name: display_name
+        description: Display name for the gym
+        tests:
+          - not_null
+
+      - name: gym_type
+        description: Categorized gym type (Traditional Gym, Boutique Fitness, Sports Facility, Other)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Traditional Gym', 'Boutique Fitness', 'Sports Facility', 'Other Fitness']
+
+      - name: geography
+        description: Point location as GEOGRAPHY
+        tests:
+          - not_null
+
+  - name: int_sf_demand_metrics
+    description: Census blocks with calculated demand metrics for gym services
+    columns:
+      - name: census_block_group
+        description: 12-digit census block group identifier
+        tests:
+          - not_null
+          - unique
+
+      - name: demand_score
+        description: Calculated demand score for gym services
+        tests:
+          - not_null
+
+      - name: is_high_demand_area
+        description: Boolean flag for high-demand areas
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+
+      - name: geography
+        description: Census block geography
+        tests:
+          - not_null

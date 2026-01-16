@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(snow sql:*)",
+      "Bash(snow connection:*)",
+      "Bash(dbt debug:*)",
+      "Bash(dbt run:*)",
+      "Bash(dbt test:*)",
+      "Bash(dbt build:*)",
+      "Bash(dbt run-operation:*)",
+      "Bash(dbt ls:*)",
+      "Bash(uv pip install:*)",
+      "Bash(uv run:*)",
+      "Bash(uv venv:*)",
+      "Read(//home/infty/.dbt/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

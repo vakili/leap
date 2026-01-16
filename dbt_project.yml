@@ -1,0 +1,40 @@
+name: 'leap_analytics'
+version: '1.0.0'
+config-version: 2
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'leap_analytics'
+
+# These configurations specify where dbt should look for different types of files.
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+# Model configurations
+models:
+  leap_analytics:
+    # Staging models - views for quick iteration
+    staging:
+      +materialized: view
+      +schema: staging
+
+    # Intermediate models - views by default
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+
+    # Marts models - tables for production
+    marts:
+      +materialized: table
+      +schema: marts
+
+dbt-cloud:
+    project-id: 70471823542146

@@ -1,0 +1,74 @@
+version: 2
+
+sources:
+  - name: census
+    description: US Open Census Data from SafeGraph (2019 ACS 5-year estimates)
+    database: US_OPEN_CENSUS_DATA__NEIGHBORHOOD_INSIGHTS__FREE_DATASET
+    schema: PUBLIC
+    quoting:
+      database: false
+      schema: false
+      identifier: true
+    tables:
+      - name: cbg_geometry_2019
+        description: Census Block Group boundaries for the United States
+        identifier: "2019_CBG_GEOMETRY"
+        columns:
+          - name: CENSUS_BLOCK_GROUP
+            description: 12-digit census block group identifier
+          - name: STATE
+            description: State abbreviation
+          - name: COUNTY
+            description: County name
+          - name: GEOMETRY
+            description: GeoJSON polygon geometry
+
+      - name: cbg_b01_2019
+        description: Age and Sex demographic data
+        identifier: "2019_CBG_B01"
+        columns:
+          - name: CENSUS_BLOCK_GROUP
+            description: 12-digit census block group identifier
+          - name: B01001e1
+            description: Total population estimate
+
+      - name: cbg_b19_2019
+        description: Income data
+        identifier: "2019_CBG_B19"
+        columns:
+          - name: CENSUS_BLOCK_GROUP
+            description: 12-digit census block group identifier
+          - name: B19013e1
+            description: Median household income estimate
+
+      - name: cbg_b23_2019
+        description: Employment status data
+        identifier: "2019_CBG_B23"
+        columns:
+          - name: CENSUS_BLOCK_GROUP
+            description: 12-digit census block group identifier
+          - name: B23025e3
+            description: Employed civilian population estimate
+
+  - name: overture
+    description: Overture Maps Foundation - Places dataset
+    database: OVERTURE_MAPS__PLACES
+    schema: CARTO
+    tables:
+      - name: PLACE
+        description: Points of interest including businesses and amenities
+        columns:
+          - name: ID
+            description: Unique place identifier
+          - name: GEOMETRY
+            description: Point location (lat/lon) as GEOGRAPHY
+          - name: NAMES
+            description: Place names (primary, common, rules)
+          - name: CATEGORIES
+            description: Place categories (primary, alternate)
+          - name: BASIC_CATEGORY
+            description: Basic category classification
+          - name: ADDRESSES
+            description: Address details as VARIANT array
+          - name: OPERATING_STATUS
+            description: Operating status (open, closed, etc.)

@@ -1,0 +1,60 @@
+version: 2
+
+models:
+  - name: stg_sf_census_blocks
+    description: Staging model for San Francisco census block groups with geography
+    columns:
+      - name: census_block_group
+        description: 12-digit census block group identifier
+        tests:
+          - not_null
+          - unique
+
+      - name: geography
+        description: Snowflake GEOGRAPHY type for spatial operations
+        tests:
+          - not_null
+
+  - name: stg_sf_demographics
+    description: Staging model for San Francisco demographic data
+    columns:
+      - name: census_block_group
+        description: 12-digit census block group identifier
+        tests:
+          - not_null
+          - unique
+
+      - name: total_population
+        description: Total population in census block group
+        tests:
+          - not_null
+
+      - name: pop_age_18_54
+        description: Population aged 18-54 (prime gym-going age)
+
+      - name: median_household_income
+        description: Median household income in dollars
+
+  - name: stg_sf_places
+    description: Staging model for San Francisco places (all POIs)
+    columns:
+      - name: place_id
+        description: Unique place identifier from Overture Maps
+        tests:
+          - not_null
+          - unique
+
+      - name: geography
+        description: Point location as GEOGRAPHY type
+        tests:
+          - not_null
+
+      - name: latitude
+        description: Latitude coordinate
+        tests:
+          - not_null
+
+      - name: longitude
+        description: Longitude coordinate
+        tests:
+          - not_null
